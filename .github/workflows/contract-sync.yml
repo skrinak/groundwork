@@ -1,0 +1,47 @@
+# Vendored-contract drift check.
+#
+# CLAUDE.md and .claude/settings.json are OWNED BY ContextEng and vendored here.
+# ContextEng is the single source of truth; this repo holds copies so that a
+# project generated from this template is self-contained and works offline.
+#
+# Copies drift. That is not a hypothetical — the whole reason this template
+# exists is that ContextEng's CLAUDE.md gained a taxonomy rule its own tree did
+# not satisfy, and nothing caught it. So the copies are checked, not trusted.
+#
+# One-way: upstream wins. If this fails, re-vendor rather than editing the copy:
+#
+#   curl -sS -o CLAUDE.md \
+#     https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main/CLAUDE.md
+#   curl -sS -o .claude/settings.json \
+#     https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main/.claude/settings.json
+#
+# If a change genuinely belongs to the template and not to ContextEng, make it
+# upstream first. A local edit here is silently reverted by the next re-vendor.
+name: contract-sync
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so drift surfaces on its own rather than on whoever next opens a PR.
+    - cron: '0 9 * * 1'
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Diff vendored contract against ContextEng
+        run: |
+          set -euo pipefail
+          BASE=https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main
+          status=0
+          for f in CLAUDE.md .claude/settings.json; do
+            curl -sSf "$BASE/$f" -o "/tmp/upstream-$(basename "$f")"
+            if diff -q "$f" "/tmp/upstream-$(basename "$f")" >/dev/null; then
+              echo "ok        $f"
+            else
+              echo "DRIFTED   $f"
+              diff -u "$f" "/tmp/upstream-$(basename "$f")" || true
+              status=1
+            fi
+          done
+          exit $status
