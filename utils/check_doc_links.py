@@ -592,8 +592,15 @@ def check_taxonomy(root: Path, names: list[str], report: Report) -> None:
         if rel.split("/")[0] == STATUS_LINT_DIR:
             if rel.startswith(STATUS_LINT_EXEMPT_PREFIXES):
                 continue
+            # A bucket's own README is a usage guide, not a record. It explains
+            # what belongs in the directory; it does not record a decision.
+            if PurePosixPath(rel).name == "README.md":
+                continue
             text = read_text(root / rel)
-            if text is not None and not _STATUS_RE.search(text):
+            # Blank code first: an example status header inside a fenced block
+            # must not satisfy the lint. Every bucket README shows the syntax,
+            # so without this the check passes on documents that quote it.
+            if text is not None and not _STATUS_RE.search(blank_code(text)):
                 report.add(
                     "missing-status",
                     rel,

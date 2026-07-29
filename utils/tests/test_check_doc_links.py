@@ -478,3 +478,22 @@ def test_vendored_trees_are_skipped(tmp_path, vendor):
         {f"{vendor}/pkg/readme.md": "[x](docs/nope.md)\n", "docs/keep.md": "ok\n"},
     )
     assert kinds(cdl.run(root)) == []
+
+
+def test_bucket_readme_is_not_a_record(tmp_path):
+    """`decisions/README.md` explains the bucket; it does not record a decision."""
+    root = make_repo(tmp_path, {"decisions/README.md": "# decisions/\n\nWhat goes here.\n"})
+    assert kinds(cdl.run(root)) == []
+
+
+def test_fenced_status_example_does_not_satisfy_the_lint(tmp_path):
+    """A record that merely SHOWS the header syntax has not got one.
+
+    Caught in the wild: every bucket README quotes the syntax in a fenced block,
+    so an unfenced status check passes on documents that only demonstrate it.
+    """
+    root = make_repo(
+        tmp_path,
+        {"decisions/Thing.md": "# Thing\n\n```markdown\n> **Status:** Shipped (2026-01-01)\n```\n"},
+    )
+    assert kinds(cdl.run(root)) == ["missing-status"]
