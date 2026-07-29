@@ -1,47 +1,112 @@
 # Vendored-contract drift check.
 #
-# CLAUDE.md and .claude/settings.json are OWNED BY ContextEng and vendored here.
-# ContextEng is the single source of truth; this repo holds copies so that a
-# project generated from this template is self-contained and works offline.
+# CLAUDE.md and .claude/settings.json are OWNED BY ContextEng and vendored here,
+# so a project generated from this template is self-contained and works offline.
+# Copies drift, so they are checked rather than trusted.
 #
-# Copies drift. That is not a hypothetical — the whole reason this template
-# exists is that ContextEng's CLAUDE.md gained a taxonomy rule its own tree did
-# not satisfy, and nothing caught it. So the copies are checked, not trusted.
+# WHY THIS DOES NOT FAIL ON PUSH
+# ------------------------------
+# Divergence has three causes and only one is a defect:
 #
-# One-way: upstream wins. If this fails, re-vendor rather than editing the copy:
+#   1. Someone edited the vendored copy here instead of upstream.  <- the defect
+#   2. Upstream moved ahead and the copy was not re-vendored.      <- needs action
+#   3. This repo pushed first and upstream lands minutes later.    <- transient
 #
-#   curl -sS -o CLAUDE.md \
-#     https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main/CLAUDE.md
-#   curl -sS -o .claude/settings.json \
-#     https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main/.claude/settings.json
+# Content alone cannot tell 1 from 3: in both, the copy holds bytes upstream has
+# never had. The first version of this workflow failed on push, and went red
+# twice in one afternoon for cause 3 — a benign ordering artifact that resolved
+# by itself. A check that cries wolf gets muted, and a muted check is worse than
+# no check, because it still looks like coverage.
 #
-# If a change genuinely belongs to the template and not to ContextEng, make it
-# upstream first. A local edit here is silently reverted by the next re-vendor.
+# So: push and PR runs REPORT (job summary, always green). The DAILY run
+# ENFORCES, by which point cause-3 divergence has resolved on its own and what
+# remains is genuinely 1 or 2. Worst case a bad local edit lives ~24h in a
+# vendored document — the correct severity for this class of problem.
+#
+# Fix reported drift with `make vendor`. Never hand-edit the copies: make the
+# change upstream in ContextEng, then re-vendor. A local edit is reverted by the
+# next `make vendor`, and this check is what warns you before that happens.
 name: contract-sync
 on:
   push:
   pull_request:
   schedule:
-    # Weekly, so drift surfaces on its own rather than on whoever next opens a PR.
-    - cron: '0 9 * * 1'
+    # Daily, not weekly: long enough that ordering artifacts have resolved,
+    # short enough that a genuine local edit is caught the next morning.
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Diff vendored contract against ContextEng
+
+      - name: Compare vendored contract against ContextEng
+        id: compare
         run: |
-          set -euo pipefail
+          set -uo pipefail
           BASE=https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main
-          status=0
-          for f in CLAUDE.md .claude/settings.json; do
-            curl -sSf "$BASE/$f" -o "/tmp/upstream-$(basename "$f")"
-            if diff -q "$f" "/tmp/upstream-$(basename "$f")" >/dev/null; then
-              echo "ok        $f"
+          FILES="CLAUDE.md .claude/settings.json"
+          drift=""
+          unreachable=""
+
+          {
+            echo "## Vendored contract vs ContextEng"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for f in $FILES; do
+            if ! curl -sSf --max-time 20 "$BASE/$f" -o /tmp/upstream 2>/dev/null; then
+              # Upstream unreachable is a network fact, not a drift signal.
+              unreachable="$unreachable $f"
+              echo "- \`$f\` — upstream unreachable, skipped" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            if diff -q "$f" /tmp/upstream >/dev/null 2>&1; then
+              echo "- \`$f\` — in sync" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "DRIFTED   $f"
-              diff -u "$f" "/tmp/upstream-$(basename "$f")" || true
-              status=1
+              drift="$drift $f"
+              {
+                echo "- \`$f\` — **DRIFTED**"
+                echo
+                echo '<details><summary>diff (ours vs upstream)</summary>'
+                echo
+                echo '```diff'
+                diff -u "$f" /tmp/upstream | head -80
+                echo '```'
+                echo
+                echo '</details>'
+                echo
+              } >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-          exit $status
+
+          echo "drift=${drift# }" >> "$GITHUB_OUTPUT"
+          echo "unreachable=${unreachable# }" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$drift" ]; then
+            {
+              echo
+              echo "**Fix:** \`make vendor\`, then commit the result."
+              echo
+              echo "Do not hand-edit the copies. Make the change in ContextEng first —"
+              echo "a local edit is silently reverted by the next re-vendor."
+              echo
+              echo "_If ContextEng simply has not caught up yet, ignore this. The daily"
+              echo "run enforces, and by then it will have resolved._"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Vendored contract drifted:${drift}. Run 'make vendor'. Enforced on the daily run, not on push."
+          fi
+
+      - name: Enforce (scheduled and manual runs only)
+        # Push/PR runs are informational by design — see the header. This step is
+        # the teeth, and it runs once transient ordering divergence has resolved.
+        if: >-
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          && steps.compare.outputs.drift != ''
+        run: |
+          echo "Vendored contract has drifted from ContextEng: ${{ steps.compare.outputs.drift }}"
+          echo "This is the daily enforcement run, so it is not a push-ordering artifact."
+          echo "Run 'make vendor' and commit, or make the change upstream first."
+          exit 1
