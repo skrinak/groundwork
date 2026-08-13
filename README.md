@@ -47,8 +47,8 @@ before a single byte is read.
 
 | | |
 |---|---|
-| 🗂 **Six buckets, one question each** | Classified by *how you must treat a file* — never by topic. `security/`, `qa/`, `evals/` are banned, and the README in each real bucket says why |
-| 📝 **16 usage READMEs** | Every directory, code included, states its membership test **verbatim**. The rule travels with the folder instead of hiding in `CLAUDE.md` |
+| 🗂 **Seven buckets, one question each** | Classified by *how you must treat a file* — never by topic. `security/`, `qa/`, `evals/` are banned, and the README in each real bucket says why |
+| 📝 **17 usage READMEs** | Every directory, code included, states its membership test **verbatim**. The rule travels with the folder instead of hiding in `CLAUDE.md` |
 | ✅ **A guard, green on commit zero** | Validates every path reference in **every tracked text file** — source comments, not just markdown — plus status headers and root membership. With its own 33-case fixture suite |
 | 🤖 **A contract agents follow** | `CLAUDE.md`, vendored from ContextEng and drift-checked in CI |
 | 🧭 **Two compute paths, decided on purpose** | The deterministic-first gate, so the model is the *last* thing you reach for — not the first |
@@ -70,6 +70,7 @@ my-product/
 ├── decisions/         🔒 a record of a moment     → frozen once terminal
 ├── vision/            🔭 the product we intend    → deliberately aspirational
 ├── .claude/           🤖 model-facing assets
+├── scratch/           🧹 delete it, lose nothing  → ignored, never tracked
 │
 ├── backend/
 │   ├── runtime/          THE AGENT PATH — the LLM loop, on AgentCore
@@ -103,6 +104,12 @@ to **location** eventually forbids something legitimate, because location is onl
 **Never point a generator at a curated record.** Scorecards and eval output go to `decisions/evals/`
 as dated files a tool owns outright. Aim a script at a hand-written record and every run silently
 deletes the reasoning — the only part anyone needed.
+
+**Ignoring a file is not filing it.** `.gitignore` protects the remote; the tree is what a reader and
+a model actually see. An untracked transcript in `docs/` is still in `ls`, still in glob, still in a
+file search — and it still makes `docs/`'s claim about itself. Transient output goes in `scratch/`,
+whose test is *"could I delete this right now and lose nothing?"* — the narrowest bucket in the tree,
+because here the penalty for misfiling is destruction rather than clutter.
 
 ---
 
