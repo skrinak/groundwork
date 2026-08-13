@@ -73,7 +73,12 @@ jobs:
                 echo '<details><summary>diff (ours vs upstream)</summary>'
                 echo
                 echo '```diff'
-                diff -u "$f" /tmp/upstream | head -80
+                # `|| true` is load-bearing: diff exits 1 when files differ, and with
+                # `set -o pipefail` under the runner's `bash -e` that killed this step —
+                # so the "always green on push" contract above was never actually met.
+                # Drift made the REPORT path fail red, which is the cry-wolf outcome the
+                # header exists to prevent. Caught 2026-08-13 by the first real drift.
+                diff -u "$f" /tmp/upstream | head -80 || true
                 echo '```'
                 echo
                 echo '</details>'
