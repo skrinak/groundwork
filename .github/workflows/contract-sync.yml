@@ -47,7 +47,7 @@ jobs:
         run: |
           set -uo pipefail
           BASE=https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main
-          FILES="CLAUDE.md .claude/settings.json"
+          FILES="CLAUDE.md .claude/settings.json env.example"
           drift=""
           unreachable=""
 
