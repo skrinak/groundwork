@@ -39,15 +39,21 @@ vendor:
 
 # The scaffold blind spot. `make vendor` above keeps the CONTENT (CLAUDE.md and
 # friends) current, but the MACHINERY that implements it — these workflows, the
-# reference guard, the Makefile, .gitignore — is copied ONCE when a repo is
-# created from groundwork and never updated again. That is how a CI bug fixed
+# reference guard, the Makefile, .gitignore, README.md — is copied ONCE when a
+# repo is created from groundwork and never updated again. That is how a CI bug fixed
 # upstream can keep failing a project seeded months earlier: the fix never had a
 # path in. This target is that path: it diffs each scaffold file against the
 # current groundwork and prints what drifted.
 #
-# REPORT-ONLY on purpose. .gitignore and the Makefile take legitimate per-project
-# edits, so blindly overwriting them would clobber real work — applying is a
-# human decision. Read each diff and copy across what you actually want.
+# REPORT-ONLY on purpose. README.md, .gitignore and the Makefile take legitimate
+# per-project edits, so blindly overwriting them would clobber real work —
+# applying is a human decision. Read each diff and copy across what you want.
+#
+# README.md is the extreme case: a seeded project rewrites it wholesale, so it
+# reports as one permanent full-file diff rather than as drift. It is listed
+# anyway, because groundwork's README is where setup steps live and a new one
+# (a repo toggle, a new make target) is worth seeing. Skim it for added steps;
+# do not expect it to ever read "in sync" outside groundwork itself.
 GROUNDWORK := https://raw.githubusercontent.com/skrinak/groundwork/refs/heads/main
 SCAFFOLD := .github/workflows/contract-sync.yml \
             .github/workflows/docs-links.yml \
@@ -55,7 +61,8 @@ SCAFFOLD := .github/workflows/contract-sync.yml \
             utils/check_doc_links.py \
             utils/tests/test_check_doc_links.py \
             Makefile \
-            .gitignore
+            .gitignore \
+            README.md
 .PHONY: sync-scaffold
 sync-scaffold:
 	@drift=""; \
