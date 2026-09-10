@@ -6,6 +6,7 @@ help:
 	@echo "  make check-links       Validate every path reference + decisions/ status headers + root taxonomy"
 	@echo "  make check-links-test  Run the guard's own fixture suite"
 	@echo "  make vendor            Re-pull CLAUDE.md + .claude/settings.json from ContextEng"
+	@echo "  make sync-scaffold     Report scaffold files (CI, guard, .gitignore) that drifted from groundwork"
 
 # The taxonomy guard. Validates references in EVERY tracked text file — markdown
 # links AND source comments — because source comments are where path references
@@ -35,3 +36,46 @@ vendor:
 	    || { echo "  FAILED     $$f (upstream unreachable)"; rm -f "$$f.new"; exit 1; }; \
 	done
 	@echo "Re-vendored from ContextEng. Review the diff, then commit."
+
+# The scaffold blind spot. `make vendor` above keeps the CONTENT (CLAUDE.md and
+# friends) current, but the MACHINERY that implements it — these workflows, the
+# reference guard, the Makefile, .gitignore — is copied ONCE when a repo is
+# created from groundwork and never updated again. That is how a CI bug fixed
+# upstream can keep failing a project seeded months earlier: the fix never had a
+# path in. This target is that path: it diffs each scaffold file against the
+# current groundwork and prints what drifted.
+#
+# REPORT-ONLY on purpose. .gitignore and the Makefile take legitimate per-project
+# edits, so blindly overwriting them would clobber real work — applying is a
+# human decision. Read each diff and copy across what you actually want.
+GROUNDWORK := https://raw.githubusercontent.com/skrinak/groundwork/refs/heads/main
+SCAFFOLD := .github/workflows/contract-sync.yml \
+            .github/workflows/docs-links.yml \
+            .github/workflows/auto-vendor.yml \
+            utils/check_doc_links.py \
+            utils/tests/test_check_doc_links.py \
+            Makefile \
+            .gitignore
+.PHONY: sync-scaffold
+sync-scaffold:
+	@drift=""; \
+	for f in $(SCAFFOLD); do \
+	  if ! curl -sSf --max-time 20 "$(GROUNDWORK)/$$f" -o /tmp/gw_scaffold 2>/dev/null; then \
+	    echo "  unreachable  $$f (upstream missing or network down — skipped)"; \
+	  elif [ ! -f "$$f" ]; then \
+	    echo "  ABSENT       $$f (groundwork has it, this repo does not)"; drift="$$drift $$f"; \
+	  elif cmp -s "$$f" /tmp/gw_scaffold; then \
+	    echo "  in sync      $$f"; \
+	  else \
+	    echo "  DRIFTED      $$f"; drift="$$drift $$f"; \
+	    diff -u "$$f" /tmp/gw_scaffold | sed 's/^/      /' || true; \
+	  fi; \
+	done; \
+	rm -f /tmp/gw_scaffold; \
+	if [ -n "$$drift" ]; then \
+	  echo; \
+	  echo "Scaffold drifted from groundwork:$$drift"; \
+	  echo "Not auto-applied — review each diff above and copy across what you want."; \
+	else \
+	  echo; echo "Scaffold matches groundwork."; \
+	fi

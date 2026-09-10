@@ -1,0 +1,81 @@
+# Auto-vendor: close the loop that contract-sync only opens.
+#
+# `contract-sync` (sibling workflow) is the DETECTOR — it reports drift on
+# push/PR and fails the daily run when the vendored contract falls behind
+# ContextEng. But detection still leaves a chore: a human has to notice the red,
+# run `make vendor`, and commit. Across many repos seeded from this template that
+# chore is exactly what rots — the red becomes background noise and the copy
+# stays stale for weeks.
+#
+# This workflow closes the loop. Daily it runs `make vendor`; if anything
+# changed, it opens (or force-updates) a single PR carrying the re-vendored
+# files. Drift stops being "surprise red CI you must react to" and becomes "a PR
+# you glance at and merge." `contract-sync` remains the enforcing backstop for
+# the window before the PR is merged, and for the case someone hand-edits a copy.
+#
+# Dependency-free by design: no third-party action, just `make`, `git`, and the
+# pre-installed `gh` CLI with the built-in GITHUB_TOKEN — the same minimalism as
+# the reference guard.
+#
+# REQUIRES A ONE-TIME REPO TOGGLE: Settings → Actions → General → Workflow
+# permissions → enable "Allow GitHub Actions to create and approve pull
+# requests". Without it the `gh pr create` step 403s. This is the one setup step
+# a freshly-seeded repo must do by hand — the workflow cannot grant itself the
+# right to open PRs.
+name: auto-vendor
+on:
+  schedule:
+    # An hour after contract-sync's 09:00 run, so if ContextEng moved overnight
+    # the sync PR is already waiting before the enforcing run would go red.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Re-vendor and open/update the sync PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          make vendor
+          if git diff --quiet; then
+            echo "Vendored contract already matches ContextEng — nothing to do."
+            exit 0
+          fi
+
+          branch=auto-vendor/contexteng-sync
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          git commit -am "chore: re-vendor contract from ContextEng"
+          # Force-push: a still-open PR on this branch updates in place, so repeat
+          # runs never pile up duplicate PRs.
+          git push -f origin "$branch"
+
+          {
+            echo '`make vendor` pulled newer copies of the ContextEng-owned contract'
+            echo 'files (`CLAUDE.md`, `.claude/settings.json`, `env.example`).'
+            echo
+            echo 'Review and merge to clear the drift that `contract-sync` enforces on'
+            echo 'its daily run. If a change here implies a scaffold change (a new'
+            echo 'bucket, a new rule), run `make sync-scaffold` after merging.'
+            echo
+            echo '_Opened automatically by auto-vendor; force-pushed in place on later runs._'
+          } > /tmp/pr-body.md
+
+          if [ -z "$(gh pr list --head "$branch" --state open --json number -q '.[].number')" ]; then
+            gh pr create --base "$BASE" --head "$branch" \
+              --title "chore: re-vendor contract from ContextEng" \
+              --body-file /tmp/pr-body.md
+          else
+            echo "Existing sync PR updated via force-push."
+          fi

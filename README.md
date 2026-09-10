@@ -147,6 +147,13 @@ formatted, as a worked example. Copy its shape.
 **5 · Keep the guard green.** `make check-links` on every change. It is the only thing standing
 between this structure and the pile of undifferentiated markdown it exists to prevent.
 
+**6 · Let the contract keep itself current.** `CLAUDE.md`, `.claude/settings.json`, and `env.example`
+are vendored from ContextEng and drift as it advances; `contract-sync` reports that drift and the
+`auto-vendor` workflow opens a PR to clear it. For that PR to open, enable it once: **Settings →
+Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull
+requests."** Without the toggle the workflow still runs but can't file the PR. When the machinery
+itself moves ahead — a CI fix, a guard improvement — `make sync-scaffold` shows you what to pull.
+
 ---
 
 ## The guard
