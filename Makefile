@@ -37,6 +37,17 @@ vendor:
 	done
 	@echo "Re-vendored from ContextEng. Review the diff, then commit."
 
+# Reachability probe, for callers that must tell "upstream is down" apart from
+# "vendoring failed". They cannot get that from `make vendor` exit status: GNU
+# make collapses ANY recipe failure to exit 2, so the curl failure above and a
+# genuine error are indistinguishable to a caller. Probe first, then vendor.
+#
+# Exists so the ContextEng URL stays defined once, here, rather than being
+# duplicated into a workflow where it would silently drift.
+.PHONY: vendor-probe
+vendor-probe:
+	@curl -sSf --max-time 20 -o /dev/null "$(CONTEXTENG)/CLAUDE.md"
+
 # The scaffold blind spot. `make vendor` above keeps the CONTENT (CLAUDE.md and
 # friends) current, but the MACHINERY that implements it — these workflows, the
 # reference guard, the Makefile, .gitignore — is copied ONCE when a repo is

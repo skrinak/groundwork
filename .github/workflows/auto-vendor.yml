@@ -59,6 +59,24 @@ jobs:
           BASE: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+
+          # Upstream unreachable is a network fact, not a drift signal — the rule
+          # contract-sync's header already sets out. Skipping GREEN here keeps a
+          # transient GitHub blip from reddening the daily run: red that means
+          # nothing is what gets a check muted, and a muted check still looks
+          # like coverage. The next run picks up whatever this one missed.
+          #
+          # Probed separately because `make vendor`'s exit status cannot say WHY
+          # it failed — GNU make reports any recipe failure as exit 2, so an
+          # unreachable upstream and a real error are indistinguishable to a
+          # caller. After a clean probe, a `make vendor` failure is genuine and
+          # SHOULD go red. A blip landing between probe and fetch still reds;
+          # that window is seconds wide and self-heals on the next run.
+          if ! make vendor-probe; then
+            echo "::notice::ContextEng unreachable — skipping this run. Not drift; the next run retries."
+            exit 0
+          fi
+
           make vendor
           if git diff --quiet; then
             echo "Vendored contract already matches ContextEng — nothing to do."
