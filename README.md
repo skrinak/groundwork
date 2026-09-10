@@ -147,25 +147,18 @@ formatted, as a worked example. Copy its shape.
 **5 · Keep the guard green.** `make check-links` on every change. It is the only thing standing
 between this structure and the pile of undifferentiated markdown it exists to prevent.
 
-**6 · Let the contract keep itself current.** `CLAUDE.md`, `.claude/settings.json`, and `env.example`
-are vendored from ContextEng and drift as it advances; `contract-sync` reports that drift and the
-`auto-vendor` workflow opens a PR to clear it. That PR needs one permission the workflow cannot grant
-itself — enable it once per repo:
+**6 · Let the contract keep itself current.** `CLAUDE.md`, `.claude/settings.json` and `env.example`
+are vendored from ContextEng; `contract-sync` reports drift, `auto-vendor` opens a PR to clear it.
+That PR needs one permission the workflow cannot grant itself — once per repo:
 
 ```bash
 gh api -X PUT repos/<owner>/<repo>/actions/permissions/workflow \
-  -F default_workflow_permissions=read \
-  -F can_approve_pull_request_reviews=true
+  -F default_workflow_permissions=read -F can_approve_pull_request_reviews=true
 ```
 
-Or by hand: **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create
-and approve pull requests."** Keep `default_workflow_permissions` at `read` — `auto-vendor` declares
-the write scopes it needs in its own `permissions:` block, so the restricted default stays intact for
-every other workflow. Without the toggle `auto-vendor` still runs, but `gh pr create` 403s.
-
-This is repo *settings*, not a file, so it does **not** travel with the scaffold — every project
-seeded from groundwork starts with it off and needs its own flip. When the machinery itself moves
-ahead — a CI fix, a guard improvement — `make sync-scaffold` shows you what to pull.
+Why `read`, the click-path equivalent, and what this does *not* carry into a seeded repo:
+[`.github/workflows/auto-vendor.yml`](.github/workflows/auto-vendor.yml). When the machinery itself
+moves ahead, `make sync-scaffold` reports what drifted.
 
 ---
 
