@@ -37,7 +37,8 @@ Tracking `decisions/YYYY-MM-DD - Design.md`. That record holds the full task det
 
 ## Getting started
 
-- [ ] 1. Replace `README.md` with what this project actually is `[pending]`
-- [ ] 2. Write the opening brief and generate `docs/PRD.md` `[pending]`
-- [ ] 3. Delete the buckets and code directories this project does not need `[pending]`
-- [ ] 4. Record the first architectural decision in `decisions/` `[pending]`
+- [ ] 1. Rename the repo, directory and remote off `groundwork` onto the product name `[pending]`
+- [ ] 2. Replace `README.md` with what this project actually is `[pending]`
+- [ ] 3. Write the opening brief and generate `docs/PRD.md` `[pending]`
+- [ ] 4. Delete the buckets and code directories this project does not need `[pending]`
+- [ ] 5. Record the first architectural decision in `decisions/` `[pending]`

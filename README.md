@@ -60,7 +60,7 @@ before a single byte is read.
 
 ```
 my-product/
-├── README.md          ← replace this (step 1 below)
+├── README.md          ← replace this (step 2 below)
 ├── CLAUDE.md             the contract · vendored, drift-checked
 ├── tasks.md              what's in flight, right now
 │
@@ -115,7 +115,18 @@ because here the penalty for misfiling is destruction rather than clutter.
 
 ## Start here
 
-**1 · Replace this README.** It's the first thing an agent reads every session. Make it say what your
+**1 · Rename it.** `groundwork` is a placeholder, and it is the first word an agent reads. Nothing
+should still carry it by your first commit — CLAUDE.md's own rule is to name resources on the product
+brand from t=0, because renaming later forces every provisioned resource to be recreated. The
+`--template` line above names the repo for you; if you forked or cloned instead:
+
+```bash
+gh repo rename my-product -y        # GitHub side; updates origin when run in-repo
+cd .. && mv groundwork my-product   # the working copy
+git -C my-product remote -v         # confirm origin points at my-product
+```
+
+**2 · Replace this README.** It's the first thing an agent reads every session. Make it say what your
 product *is*:
 
 ```markdown
@@ -131,23 +142,23 @@ Every directory has a README stating what belongs in it. Read the one next to
 the file you're about to create. Rules: CLAUDE.md.
 ```
 
-**2 · Delete what you don't need.** No agent loop? `rm -rf backend/runtime` — the deterministic-first
+**3 · Delete what you don't need.** No agent loop? `rm -rf backend/runtime` — the deterministic-first
 gate in [`backend/README.md`](backend/README.md) tells you when. Don't keep empty directories "for
 later": an empty directory is a claim about your architecture that isn't true yet, and the next
 reader will believe it.
 
-**3 · Write the brief, generate the PRD.** Use the
+**4 · Write the brief, generate the PRD.** Use the
 [PRD prompt](https://raw.githubusercontent.com/skrinak/ContextEng/refs/heads/main/prompts/PRD_DevelopmentPrompt.md),
 land it at `docs/PRD.md`, then keep it current — it becomes the one document that earns *"read this
 to understand the whole system."*
 
-**4 · Record your first decision.** [`decisions/`](decisions/) already holds one, correctly
+**5 · Record your first decision.** [`decisions/`](decisions/) already holds one, correctly
 formatted, as a worked example. Copy its shape.
 
-**5 · Keep the guard green.** `make check-links` on every change. It is the only thing standing
+**6 · Keep the guard green.** `make check-links` on every change. It is the only thing standing
 between this structure and the pile of undifferentiated markdown it exists to prevent.
 
-**6 · Let the contract keep itself current.** `CLAUDE.md`, `.claude/settings.json` and `env.example`
+**7 · Let the contract keep itself current.** `CLAUDE.md`, `.claude/settings.json` and `env.example`
 are vendored from ContextEng; `contract-sync` reports drift, `auto-vendor` opens a PR to clear it.
 That PR needs one permission the workflow cannot grant itself — once per repo:
 
